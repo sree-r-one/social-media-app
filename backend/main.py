@@ -1,12 +1,18 @@
 # region IMPORT
-from fastapi import FastAPI, Response, status, HTTPException
+from fastapi import FastAPI, Response, status, HTTPException, Depends
 from fastapi.params import Body
 from pydantic import BaseModel
 from typing import Optional
+from sqlalchemy.orm import Session
+from app.database import engine, SessionLocal, Base, get_db
+from app import models
 
 # endregion IMPORT
 
+models.Base.metadata.create_all(bind=engine)
+
 app = FastAPI()
+
 
 posts = [
     {"title": "Title of Post 1", "id": 1, "content": "Content of Post 1 "},
@@ -41,7 +47,7 @@ async def root():
 
 
 @app.get("/posts")
-async def get_posts():
+async def get_posts(db: Session = Depends(get_db)):
     return {"data": posts}
 
 
