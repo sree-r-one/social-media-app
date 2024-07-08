@@ -5,39 +5,13 @@ from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.database import engine, SessionLocal, Base, get_db
-from app import models
+from app import models, schemas
 
 # endregion IMPORT
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-
-
-posts = [
-    {"title": "Title of Post 1", "id": 1, "content": "Content of Post 1 "},
-    {"title": "Title of Post 2", "id": 2, "content": "Content of Post 2 "},
-]
-
-
-def find_post(id):
-    for post in posts:
-        if post["id"] == id:
-            return post
-
-
-def find_post_index(id):
-    for i, p in enumerate(posts):
-        if p["id"] == id:
-            return i
-    return None
-
-
-class Post(BaseModel):
-    title: str
-    content: str
-    published: bool = True
-    rating: Optional[int] = None
 
 
 # region GET
@@ -48,18 +22,25 @@ async def root():
 
 @app.get("/posts")
 async def get_posts(db: Session = Depends(get_db)):
+    """
+    Get all the posts from the Posts table
+    """
+    posts = db.query(models.Post).all()
     return {"data": posts}
 
 
-@app.get("/posts/latest")
-async def get_latest_post():
-    post = posts[-1]
-    return {"post_detail": post}
+@app.get("/posts/latest", status_code=status.HTTP_200_OK)
+async def get_latest_post(db: Session = Depends(get_db)):
+    latest_post = db.query(models.Post).order_by(models.Post.created_at.desc()).first()
+    return {"post_detail": latest_post}
 
 
-@app.get("/posts/{id}")
-async def get_post(id: int):
-    post = find_post(id)
+@app.get("/posts/{id}", status_code=status.HTTP_200_OK)
+async def get_post(id: int, db: Session = Depends(get_db)):
+    """
+    Get a post using ID
+    """
+    post = db.query(models.Post).filter(models.Post.id == id).first()
 
     if not post:
         raise HTTPException(
@@ -74,11 +55,14 @@ async def get_post(id: int):
 
 # region POST
 @app.post("/create", status_code=status.HTTP_201_CREATED)
-async def create_post(post: Post, response=Response):
+async def create_post(post: schemas.PostCreate, db: Session = Depends(get_db)):
     """
     Create a post
     """
-    print(post)
+
+    db_post = models.Post(**post.model_dump())  # Unpack the model
+    db.add(db_post)  # Add the post to the database
+    db.commit()  # Commit to the database
     return {"message": post}
 
 
@@ -87,17 +71,17 @@ async def create_post(post: Post, response=Response):
 
 # region DELETE
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_post(id: int):
+async def delete_post(id: int, db: Session = Depends(get_db)):
     """
     Delete a post
     """
-    index = find_post_index(id)
+    post = db.query(models.Post).filter(models.Post.id == id).first()
 
-    # If No index is found
-    if index is None:
+    if post is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
-    posts.pop(index)
+    db.delete(post)
+    db.commit()
     return
 
 
@@ -106,19 +90,22 @@ async def delete_post(id: int):
 
 # region UPDATE
 @app.put("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
-async def update_post(id: int, post: Post):
+async def update_post(id: int, post: schemas.PostUpdate, db: Session = Depends(get_db)):
     """
     Update a post
     """
-    index = find_post_index(id)
+    post_to_update = db.query(models.Post).filter(models.Post.id == id).first()
 
-    # If No index is found
-    if index is None:
+    if post_to_update is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
-    updated_post = {**post.model_dump(), "id": id}
+    post_to_update.title = post.title
+    post_to_update.content = post.content
+    post_to_update.published = post.published
 
-    return {"updated_post": "Updated post"}
+    db.commit()
+
+    return {"updated_post": post_to_update}
 
 
 # endregion UPDATE
