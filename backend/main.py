@@ -120,3 +120,26 @@ async def update_post(id: int, post: schemas.PostUpdate, db: Session = Depends(g
 
 
 # endregion UPDATE
+
+
+# region USER
+@app.post(
+    "/users", status_code=status.HTTP_201_CREATED, response_model=schemas.UserResponse
+)
+async def create_post(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    """
+    Create a User
+    """
+    user_check = db.query(models.User).filter(models.User.email == user.email).first()
+
+    if user_check:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User Exists!")
+
+    db_user = models.User(**user.model_dump())  # Unpack the model
+    db.add(db_user)  # Add the post to the database
+    db.commit()  # Commit to the database
+    db.refresh(db_user)
+    return db_user
+
+
+# endregion USER
