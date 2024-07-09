@@ -148,4 +148,17 @@ async def create_post(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return db_user
 
 
+@app.get("/users/{id}", response_model=schemas.UserResponse)
+async def get_user(id: int, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.id == id).first()
+
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with the id {id} was not found ",
+        )
+
+    return db_user
+
+
 # endregion USER
