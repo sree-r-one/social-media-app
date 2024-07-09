@@ -6,8 +6,10 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 from app.database import engine, SessionLocal, Base, get_db
 from app import models, schemas
+from app.utils import hash_password
 
 # endregion IMPORT
+
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -134,6 +136,10 @@ async def create_post(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
     if user_check:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User Exists!")
+
+    # Hash the password
+    hashed_password = hash_password(user.password)
+    user.password = hashed_password
 
     db_user = models.User(**user.model_dump())  # Unpack the model
     db.add(db_user)  # Add the post to the database
