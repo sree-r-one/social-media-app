@@ -2,7 +2,7 @@
 from fastapi import FastAPI, Response, status, HTTPException, Depends
 from fastapi.params import Body
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.orm import Session
 from app.database import engine, SessionLocal, Base, get_db
 from app import models, schemas
@@ -20,22 +20,26 @@ async def root():
     return {"message": "hello world again"}
 
 
-@app.get("/posts")
+@app.get(
+    "/posts", status_code=status.HTTP_200_OK, response_model=List[schemas.PostResponse]
+)
 async def get_posts(db: Session = Depends(get_db)):
     """
     Get all the posts from the Posts table
     """
     posts = db.query(models.Post).all()
-    return {"data": posts}
+    return posts
 
 
 @app.get("/posts/latest", status_code=status.HTTP_200_OK)
 async def get_latest_post(db: Session = Depends(get_db)):
     latest_post = db.query(models.Post).order_by(models.Post.created_at.desc()).first()
-    return {"post_detail": latest_post}
+    return latest_post
 
 
-@app.get("/posts/{id}", status_code=status.HTTP_200_OK)
+@app.get(
+    "/posts/{id}", status_code=status.HTTP_200_OK, response_model=schemas.PostResponse
+)
 async def get_post(id: int, db: Session = Depends(get_db)):
     """
     Get a post using ID
@@ -47,14 +51,16 @@ async def get_post(id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Post with the id {id} was not found ",
         )
-    return {"post_detail": post}
+    return post
 
 
 # endregion GET
 
 
 # region POST
-@app.post("/create", status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/create", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse
+)
 async def create_post(post: schemas.PostCreate, db: Session = Depends(get_db)):
     """
     Create a post
@@ -63,7 +69,8 @@ async def create_post(post: schemas.PostCreate, db: Session = Depends(get_db)):
     db_post = models.Post(**post.model_dump())  # Unpack the model
     db.add(db_post)  # Add the post to the database
     db.commit()  # Commit to the database
-    return {"message": post}
+    db.refresh(db_post)
+    return db_post
 
 
 # endregion POST
@@ -89,7 +96,11 @@ async def delete_post(id: int, db: Session = Depends(get_db)):
 
 
 # region UPDATE
-@app.put("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.put(
+    "/posts/{id}",
+    status_code=status.HTTP_200_OK,
+    response_model=schemas.PostResponse,
+)
 async def update_post(id: int, post: schemas.PostUpdate, db: Session = Depends(get_db)):
     """
     Update a post
@@ -105,7 +116,7 @@ async def update_post(id: int, post: schemas.PostUpdate, db: Session = Depends(g
 
     db.commit()
 
-    return {"updated_post": post_to_update}
+    return post_to_update
 
 
 # endregion UPDATE
