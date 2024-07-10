@@ -10,7 +10,7 @@ class Post(BaseModel):
     rating: Optional[int] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class PostCreate(BaseModel):
@@ -19,7 +19,7 @@ class PostCreate(BaseModel):
     published: Optional[bool] = False
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class PostUpdate(BaseModel):
@@ -28,7 +28,7 @@ class PostUpdate(BaseModel):
     published: Optional[bool]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class PostResponse(BaseModel):
@@ -39,7 +39,7 @@ class PostResponse(BaseModel):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class UserCreate(BaseModel):
@@ -53,4 +53,9 @@ class UserResponse(BaseModel):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
